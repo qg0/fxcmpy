@@ -99,6 +99,9 @@ class fxcmpy(object):
             #self.auth_url = 'https://www-beta2.fxcorporate.com'
             self.trading_url = 'https://api.fxcm.com'
             self.port = 443
+        elif server == 'wip':
+            self.trading_url = 'https://apiz.fxcorporate.com'
+            self.port = 443
 
 
         if access_token != '':
@@ -166,6 +169,7 @@ class fxcmpy(object):
         self.oco_orders = dict()
         self.add_callbacks = dict()
         self.connection_status = 'unset'
+        self.max_prices = 10000
         self.connect()
 
         count = 0
@@ -191,10 +195,29 @@ class fxcmpy(object):
         self.subscribe_data_model('Order')
         self.subscribe_data_model('OpenPosition')
         self.subscribe_data_model('ClosedPosition')
+        self.__disconnected__ = False
 
     def close(self):
+        self.__disconnected__ = True
         if self.is_connected():
             self.socket.disconnect()
+            self.socket_thread.join()
+            time.sleep(2)
+        self.socket = None
+        self.request_header = None
+        self.default_account = None
+        self.instruments = None
+        self.prices = dict()
+        self.account_ids = set()
+        self.orders = dict()
+        self.old_orders = dict()
+        self.offers = dict()
+        self.open_pos = dict()
+        self.closed_pos = dict()
+        self.oco_orders = dict()
+        self.add_callbacks = dict()
+        self.connection_status = 'unset'
+
 
     def connect(self):
         """ Connect to the FXCM server."""
@@ -223,6 +246,28 @@ class fxcmpy(object):
             raise ValueError("Unknown account id")
         else:
             self.default_account = account_id
+
+    def get_max_prices(self):
+        """ Return the max length of the market price tables."""
+        return self.max_prices
+
+    def set_max_prices(self, max_prices):
+        """ Set the max lenght of the market price tables.
+        
+        Arguments:
+
+        max_prices, int or None (Default 10000): The max length of the price 
+            tables, if set to None, the price tables are unlimited.
+
+        """
+        if max_prices is not None:
+            try:
+                max_prices = int(max_prices)
+            except:
+                raise TypeError('max_prices must be an integer')
+            if max_prices < 1:
+                raise ValueError('max_prices must be positive')
+        self.max_prices = max_prices
 
     def get_instruments(self):
         """ Return the tradeable instruments of FXCM as a list."""
@@ -1090,7 +1135,7 @@ class fxcmpy(object):
                                 protocol='post')
 
     def close_trade(self, trade_id, amount, order_type='AtMarket',
-                    time_in_force='IOC', rate=0, at_market=0):
+                    time_in_force='IOC', rate=None, at_market=None):
         """ Close a given trade.
 
         Arguments:
@@ -1125,15 +1170,25 @@ class fxcmpy(object):
         except:
             raise TypeError('amount must be a number.')
 
-        try:
-            rate = float(rate)
-        except:
-            raise TypeError('rate must be a number.')
+        if order_type == 'MarketRange' and rate is not None:
+            self.logger.warn("rate is ignored for order_type='MarketRange'")
 
-        try:
-            at_market = float(at_market)
-        except:
-            raise TypeError('at_market must be a number.')
+        if rate is not None:
+            try:
+                rate = float(rate)
+            except:
+                raise TypeError('rate must be a number.')
+
+        if order_type == 'MarketRange' and at_market == None:
+            raise ValueError("at_market is required for order_type='MarketRange'")
+
+        if at_market is not None:
+            try:
+                at_market = float(at_market)
+            except:
+                raise TypeError('at_market must be a number.')
+            if at_market < 0:
+                raise ValueError('at_market must bo greater or equal to zero')
 
         if order_type not in ['AtMarket', 'MarketRange']:
             msg = "order_type must be 'AtMarket' or 'MarketRange'."
@@ -1145,12 +1200,15 @@ class fxcmpy(object):
 
         params = {
                   'trade_id': trade_id,
-                  'rate': rate,
                   'amount': amount,
-                  'at_market': at_market,
                   'order_type': order_type,
                   'time_in_force': time_in_force
                  }
+        if rate is not None and order_type != 'MarketRange':
+            params['rate'] = rate
+
+        if at_market is not None:
+            params['at_market'] = at_market
 
         self.__handle_request__(method='trading/close_trade',
                                        params=params, protocol='post')
@@ -1993,7 +2051,7 @@ class fxcmpy(object):
             else:
                 msg = "end must either be a datetime object or a string"
                 msg += " in format 'YYYY-MM-DD hh:mm'."
-                raise ValueError(msg)
+        
 
             end = ((end - dt.datetime(1970, 1, 1)) / dt.timedelta(seconds=1))
             try:
@@ -2124,10 +2182,14 @@ class fxcmpy(object):
                                    }
 
             time.sleep(2)
+            self.__disconnected__ = False
+            self.socket.on('disconnect', self.__on_disconnect__)
             self.socket.wait()
+
 
     def __reconnect__(self, count):
         self.logger.warn('Not connected, try to reconnect. (%s)' % count)
+        time.sleep(5)
         self.connect()
         time.sleep(5)
         self.subscribe_data_model('Order')
@@ -2138,6 +2200,7 @@ class fxcmpy(object):
             self.__handle_request__(method='subscribe', params=params,
                                     protocol='post')
             self.socket.on(symbol, self.__on_price_update__)
+        self.socket.on('disconnect',self.__on_disconnect__)
 
     def __handle_request__(self, method='', params={}, protocol='get'):
         """ Sends server requests. """
@@ -2233,6 +2296,11 @@ class fxcmpy(object):
             self.prices[symbol] = temp_data
         else:
             self.prices[symbol] = pd.concat([self.prices[symbol], temp_data])
+            if self.max_prices is not None and (len(self.prices[symbol]) > 
+                                                self.max_prices):
+                msg = 'Max. length of prices exceeded (%s), dropping oldest.'
+                self.logger.info(msg % self.max_prices)
+                self.prices[symbol] = self.prices[symbol].iloc[-self.max_prices:]
 
         if symbol in self.add_callbacks:
             callbacks = self.add_callbacks[symbol]
@@ -2437,7 +2505,17 @@ class fxcmpy(object):
                     self.logger(sys.exc_info()[2])
 
     def __on_error__(self, msg):
-        print('Error: %s' % msg)
+        self.logger.error('Error: %s' % msg)
+
+    def __on_disconnect__(self):
+        if self.__disconnected__ is False:
+            count = 1
+            while count < 11 and not self.is_connected():
+                self.__reconnect__(count)
+                time.sleep(5)
+                count += 1
+            if not self.is_connected():
+                raise IOError('Connection lost, unable to reconnect')
 
     def __get_config_value__(self, section, key):
         config = configparser.ConfigParser()

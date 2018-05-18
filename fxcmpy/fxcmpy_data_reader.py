@@ -16,13 +16,16 @@ import pandas as pd
 
 
 class fxcmpy_tick_data_reader(object):
-    """ fxcm_tick_data_reader(A class to fetch hsitorical data provided by FXCM """
+    """ fxcm_tick_data_reader, a class to fetch historical tick data provided 
+    by FXCM
+    """
+
     symbols = ('AUDCAD', 'AUDCHF', 'AUDJPY', 'AUDNZD', 'CADCHF', 'EURAUD',
                'EURCHF', 'EURGBP', 'EURJPY', 'EURUSD', 'GBPCHF', 'GBPJPY',
                'GBPNZD', 'GBPUSD', 'GBPCHF', 'GBPJPY', 'GBPNZD', 'NZDCAD',
                'NZDCHF', 'NZDJPY', 'NZDUSD', 'USDCAD', 'USDCHF', 'USDJPY')
 
-    def __init__(self, symbol, start, stop):
+    def __init__(self, symbol, start, stop, verbosity=False):
         """ Constructor of the class.
 
         Arguments:
@@ -36,6 +39,9 @@ class fxcmpy_tick_data_reader(object):
 
         stop: datetime.date,
             the last day to delivers data for.
+
+        verbosity: boolean (default: False), 
+            whether to print output or not.
 
         """
 
@@ -58,6 +64,11 @@ class fxcmpy_tick_data_reader(object):
             raise ValueError(msg % symbol)
         else:
             self.symbol = symbol
+
+        if verbosity != True and verbosity != False:
+            raise TypeError('verbosity must be a boolean')
+        else:
+            self.verbosity = verbosity
 
         self.data = None
         self.url = 'https://tickdata.fxcorporate.com/%s/%s/%s.csv.gz'
@@ -109,7 +120,8 @@ class fxcmpy_tick_data_reader(object):
         
     def __fetch_dataset__(self, url):
         """ Fetch the data for the given symbol and for one week."""
-        print('Fetching data from: %s' % url)
+        if self.verbosity:
+            print('Fetching data from: %s' % url)
         requests = urllib.request.urlopen(url)
         buf = BytesIO(requests.read())
         f = gzip.GzipFile(fileobj=buf)
@@ -119,8 +131,35 @@ class fxcmpy_tick_data_reader(object):
         return data_pandas
 
 class fxcmpy_candles_data_reader(fxcmpy_tick_data_reader):
-    def __init__(self, symbol, start, stop, period):
-        fxcmpy_tick_data_reader.__init__(self, symbol, start, stop)
+    """ fxcm_candles_data_reader, a class to fetch historical candles data 
+    provided by FXCM
+    """
+
+    def __init__(self, symbol, start, stop, period, verbosity=False):
+        """ Constructor of the class.
+
+        Arguments:
+        ==========
+
+        symbol: string, one of fxcm_data_reader.symbols,
+            defines the instrument to deliver data for.
+
+        start: datetime.date,
+            the first day to delivers data for.
+
+        stop: datetime.date,
+            the last day to delivers data for.
+
+        period: string, one of ('m1', 'H1', 'D1'), 
+            the granularity of the data.
+
+        verbosity: boolean (default: False), 
+            whether to print output or not.
+
+        """
+
+
+        fxcmpy_tick_data_reader.__init__(self, symbol, start, stop, verbosity)
         if period not in ['m1', 'H1', 'D1']:
             raise ValueError("period must be one of 'm1', 'H1' or 'D1'")
         self.period = period

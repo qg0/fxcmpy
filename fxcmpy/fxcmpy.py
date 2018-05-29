@@ -99,10 +99,6 @@ class fxcmpy(object):
             #self.auth_url = 'https://www-beta2.fxcorporate.com'
             self.trading_url = 'https://api.fxcm.com'
             self.port = 443
-        elif server == 'wip':
-            self.trading_url = 'https://apiz.fxcorporate.com'
-            self.port = 443
-
 
         if access_token != '':
             self.access_token = access_token
@@ -2286,7 +2282,6 @@ class fxcmpy(object):
 
     def __on_price_update__(self, msg):
         data = json.loads(msg)
-
         symbol = data['Symbol']
         date = pd.to_datetime(int(data['Updated']), unit='ms')
         temp_data = pd.DataFrame([data['Rates']],

@@ -25,7 +25,7 @@ class fxcmpy_tick_data_reader(object):
                'GBPNZD', 'GBPUSD', 'GBPCHF', 'GBPJPY', 'GBPNZD', 'NZDCAD',
                'NZDCHF', 'NZDJPY', 'NZDUSD', 'USDCAD', 'USDCHF', 'USDJPY')
 
-    def __init__(self, symbol, start, stop, verbosity=False):
+    def __init__(self, symbol, start, end, verbosity=False):
         """ Constructor of the class.
 
         Arguments:
@@ -37,7 +37,7 @@ class fxcmpy_tick_data_reader(object):
         start: datetime.date,
             the first day to delivers data for.
 
-        stop: datetime.date,
+        end: datetime.date,
             the last day to delivers data for.
 
         verbosity: boolean (default: False), 
@@ -50,10 +50,10 @@ class fxcmpy_tick_data_reader(object):
         else:
             self.start = start
 
-        if not (isinstance(stop, dt.datetime) or isinstance(stop, dt.date)):
-            raise TypeError('stop must be a datetime object')
+        if not (isinstance(end, dt.datetime) or isinstance(end, dt.date)):
+            raise TypeError('end must be a datetime object')
         else:
-            self.stop = stop
+            self.stop = end
 
         if self.start > self.stop:
             raise ValueError('Invalid date range')
@@ -135,7 +135,7 @@ class fxcmpy_candles_data_reader(fxcmpy_tick_data_reader):
     provided by FXCM
     """
 
-    def __init__(self, symbol, start, stop, period, verbosity=False):
+    def __init__(self, symbol, start, end, period, verbosity=False):
         """ Constructor of the class.
 
         Arguments:
@@ -147,7 +147,7 @@ class fxcmpy_candles_data_reader(fxcmpy_tick_data_reader):
         start: datetime.date,
             the first day to delivers data for.
 
-        stop: datetime.date,
+        end: datetime.date,
             the last day to delivers data for.
 
         period: string, one of ('m1', 'H1', 'D1'), 
@@ -159,7 +159,7 @@ class fxcmpy_candles_data_reader(fxcmpy_tick_data_reader):
         """
 
 
-        fxcmpy_tick_data_reader.__init__(self, symbol, start, stop, verbosity)
+        fxcmpy_tick_data_reader.__init__(self, symbol, start, end, verbosity)
         if period not in ['m1', 'H1', 'D1']:
             raise ValueError("period must be one of 'm1', 'H1' or 'D1'")
         self.period = period

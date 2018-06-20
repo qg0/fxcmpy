@@ -2,9 +2,6 @@
 # fxcmpy_order -- A Python Wrapper Class for the
 # RESTful API as provided by FXCM Forex Capital Markets Ltd.
 #
-# Proof-of-Concept | Prototype Version for Illustration
-# by The Python Quants GmbH
-#
 # The codes contained herein come without warranties or representations,
 # to the extent permitted by applicable law.
 #

@@ -2028,7 +2028,7 @@ class fxcmpy(object):
                 self.logger.error('Error in get_candles:')
                 self.logger.error('Illegal value for start: %s.' % start)
                 raise ValueError('start must be a datetime object.')
-            params['from'] = start
+            params['from'] = max(start, 1)
 
         if end == None and stop is not None:
             end = stop
@@ -2056,7 +2056,7 @@ class fxcmpy(object):
                 self.logger.error('Error in get_candles:')
                 self.logger.error('Illegal value for end: %s.' % stop)
                 raise ValueError('end must be a datetime object.')
-            params['to'] = end
+            params['to'] = max(end, 1)
 
         data = self.__handle_request__(method='candles/%s/%s'
                                        % (offer_id, period), params=params)
@@ -2084,6 +2084,8 @@ class fxcmpy(object):
                                         "','".join(self.CANDLES_COLUMNS)))
 
         if 'candles' in data:
+            while None in data['candles']:
+                data['candles'].remove(None)
             ret = pd.DataFrame(data['candles'], columns=self.CANDLES_COLUMNS)
             ret['date'] = pd.to_datetime(ret['date'], unit='s')
         else:

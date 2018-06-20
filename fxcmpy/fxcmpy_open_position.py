@@ -2,9 +2,6 @@
 # fxcmpy_open_position -- A Python Wrapper Class for the
 # RESTful API as provided by FXCM Forex Capital Markets Ltd.
 #
-# Proof-of-Concept | Prototype Version for Illustration
-# by The Python Quants GmbH
-#
 # The codes contained herein come without warranties or representations,
 # to the extent permitted by applicable law.
 #
@@ -19,6 +16,7 @@ import datetime as dt
 
 class fxcmpy_open_position(object):
     """ A convenience class for a better handling of open positions. """
+    
     position_parameter = ['tradeId', 'accountName', 'accountId', 'roll', 'com',
                           'open', 'valueDate', 'grossPL', 'close', 'visiblePL',
                           'isDisabled', 'currency', 'isBuy', 'amountK',
@@ -62,22 +60,22 @@ class fxcmpy_open_position(object):
         setattr(self, '__'+attribute+'__', value)
 
     def get_tradeId(self):
-        """Return the value of the attribute tradeId."""
+        """ Return the value of the attribute tradeId."""
 
         return self.__tradeId__
 
     def get_accountName(self):
-        """Return the value of the attribute accountName."""
+        """ Return the value of the attribute accountName."""
 
         return self.__accountName__
 
     def get_accountId(self):
-        """Return the value of the attribute accountId."""
+        """ Return the value of the attribute accountId."""
 
         return self.__accountId__
 
     def get_roll(self):
-        """Return the value of the attribute roll."""
+        """ Return the value of the attribute roll."""
 
         return self.__roll__
 

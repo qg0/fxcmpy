@@ -183,6 +183,8 @@ class fxcmpy(object):
         self.default_account = self.account_ids[0]
         msg = 'Default account set to %s, to change use set_default_account().'
         self.logger.warn(msg % self.default_account)
+        self.__activate_all_instruments__()
+        time.sleep(1)
         self.__collect_orders__()
         self.__collect_oco_orders__()
         self.__collect_offers__()
@@ -1941,11 +1943,11 @@ class fxcmpy(object):
 
         start: datetime.datetime, datetime.date or string (defaut None),
             the first date to receive data for. If it is a string, the date is 
-            in format YYYY-MM-DD hh:mm. 
+            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'. 
 
         end: datetime.datetime, datetime.date or string (default None),
             the last date to receive data for. If it is a string, the date is 
-            in format YYYY-MM-DD hh:mm. 
+            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'. 
 
         with_index: boolean (default True),
             whether the column 'date' should server as index in the resulting
@@ -2006,6 +2008,8 @@ class fxcmpy(object):
 
         if start:
             if isinstance(start, str):
+                if len(start) == 10:
+                    start += ' 00:00'
                 try:
                     start = dt.datetime.strptime(start, '%Y-%m-%d %H:%M')
                 except:
@@ -2035,6 +2039,8 @@ class fxcmpy(object):
 
         if end:
             if isinstance(end, str):
+                if len(end) == 10:
+                    end += ' 00:00'
                 try:
                     end = dt.datetime.strptime(end, '%Y-%m-%d %H:%M')
                 except:
@@ -2126,6 +2132,60 @@ class fxcmpy(object):
                     oco = fxcmpy_oco_order(order.__ocoBulkId__, [order, ], self,
                                          self.logger)
                     self.oco_orders[order.__ocoBulkId__] = oco
+
+    def __activate_instrument__(self, symbol):
+        """ Activates an instrument so that it appears in the offers table
+
+        Arguments:
+
+        symbol, string:
+            the symbol of the instrument to activate.
+
+        Returns:
+            True by success and False else.
+        """
+
+        if 1: #try:
+            self.__handle_request__(method='trading/update_subscriptions',
+                                    params={'symbol':symbol, 'visible':'true'},
+                                    protocol='post')
+        else: #except:
+            self.logger.warn('Can not activate instrument %s' %symbol)
+            return False
+        return True
+
+
+    def __activate_all_instruments__(self):
+        """ Activates all available instruments so that they appear in the 
+        offers table """
+        instruments = self.__get_instruments__()
+        if (('data' not in instruments) or 
+            ('instrument' not in instruments['data']) or
+            (len(instruments['data']['instrument'])==0)):
+            msg = 'Got no instruments from FXCM server, failling back to '
+            msg += 'default activated instruments in offers table.' 
+            self.logger.warn(msg)
+            symbols = list()
+        else:
+            symbols = instruments['data']['instrument']
+
+        for sym in symbols:
+            if 'visible' in sym and sym['visible'] is False:
+                if not self.__activate_instrument__(sym['symbol']):
+                    msg = 'Can not activate instrument %s' %sym['symbol']
+                    self.logger.warn(msg)
+
+
+    def __get_instruments__(self):
+        """ Gets all available instruments from the FXCM server"""
+        try:
+            data = self.__handle_request__(method='trading/get_instruments',
+                                          params={}, protocol='get')
+        except:
+            msg = 'Can not fetch available symbols from FXCM sever.'
+            self.logger.warn(msg)
+            data = list()
+        return data
 
     def __collect_offers__(self):
         """ Collect available offers and stores them in self.offers, a dict

@@ -2,9 +2,6 @@
 # fxcmpy -- A Python Wrapper Class for the
 # RESTful API as provided by FXCM Forex Capital Markets Ltd.
 #
-# Proof-of-Concept | Prototype Version for Illustration
-# by The Python Quants GmbH
-#
 # The codes contained herein come without warranties or representations,
 # to the extent permitted by applicable law.
 #
@@ -26,6 +23,7 @@ import configparser
 import logging
 import os
 
+import fxcmpy.fxcmpy_instruments as fxcmpy_instruments 
 from fxcmpy.fxcmpy_closed_position import fxcmpy_closed_position
 from fxcmpy.fxcmpy_open_position import fxcmpy_open_position
 from fxcmpy.fxcmpy_oco_order import fxcmpy_oco_order
@@ -155,6 +153,7 @@ class fxcmpy(object):
         self.request_header = None
         self.default_account = None
         self.instruments = None
+        self.number_update_requests = 0
         self.prices = dict()
         self.account_ids = set()
         self.orders = dict()
@@ -183,8 +182,6 @@ class fxcmpy(object):
         self.default_account = self.account_ids[0]
         msg = 'Default account set to %s, to change use set_default_account().'
         self.logger.warn(msg % self.default_account)
-        self.__activate_all_instruments__()
-        time.sleep(1)
         self.__collect_orders__()
         self.__collect_oco_orders__()
         self.__collect_offers__()
@@ -272,7 +269,7 @@ class fxcmpy(object):
 
         self.logger.debug('Fetching available instruments')
 
-        data = self.__handle_request__(method='trading/get_instruments')
+        data =  self.__get_instruments_table__()
 
         if 'data' in data and 'instrument' in data['data']:
             instruments = [ins['symbol'] for ins in data['data']['instrument']]
@@ -761,6 +758,37 @@ class fxcmpy(object):
 
         else:
             self.socket.on(model, self.__on_model_update__)
+
+    def subscribe_instrument(self, symbol):
+        """ Subscribe an instrument so that it appears in the offers table.
+
+        Arguments:
+
+        symbol, string:
+            the symbol of the instrument to activate.
+
+        Returns:
+            True by success and False else.
+        """
+        ret = self.__update__instrument_subscription__(symbol, True)
+        return ret
+
+    def unsubscribe_instrument(self, symbol):
+        """ Unsubscribe an instrument so that it does not appears in the 
+        offers table.
+
+        Arguments:
+
+        symbol, string:
+            the symbol of the instrument to activate.
+
+        Returns:
+            True by success and False else.
+        """
+
+        ret = self.__update__instrument_subscription__(symbol, False)
+        return ret
+
 
     def unsubscribe_market_data(self, symbol=''):
         """ Unsubscribe for instrument prices of the given symbol."""
@@ -2133,68 +2161,43 @@ class fxcmpy(object):
                                          self.logger)
                     self.oco_orders[order.__ocoBulkId__] = oco
 
-    def __activate_instrument__(self, symbol):
-        """ Activates an instrument so that it appears in the offers table
+    def __get_instruments_table__(self):
+        """ Return the instruments table of FXCM."""
 
-        Arguments:
+        self.logger.debug('Fetching instruments table.')
 
-        symbol, string:
-            the symbol of the instrument to activate.
-
-        Returns:
-            True by success and False else.
-        """
-
-        if 1: #try:
-            self.__handle_request__(method='trading/update_subscriptions',
-                                    params={'symbol':symbol, 'visible':'true'},
-                                    protocol='post')
-        else: #except:
-            self.logger.warn('Can not activate instrument %s' %symbol)
-            return False
-        return True
-
-
-    def __activate_all_instruments__(self):
-        """ Activates all available instruments so that they appear in the 
-        offers table """
-        instruments = self.__get_instruments__()
-        if (('data' not in instruments) or 
-            ('instrument' not in instruments['data']) or
-            (len(instruments['data']['instrument'])==0)):
-            msg = 'Got no instruments from FXCM server, failling back to '
-            msg += 'default activated instruments in offers table.' 
-            self.logger.warn(msg)
-            symbols = list()
-        else:
-            symbols = instruments['data']['instrument']
-
-        for sym in symbols:
-            if 'visible' in sym and sym['visible'] is False:
-                if not self.__activate_instrument__(sym['symbol']):
-                    msg = 'Can not activate instrument %s' %sym['symbol']
-                    self.logger.warn(msg)
-
-
-    def __get_instruments__(self):
-        """ Gets all available instruments from the FXCM server"""
         try:
-            data = self.__handle_request__(method='trading/get_instruments',
-                                          params={}, protocol='get')
+            data = self.__handle_request__(method='trading/get_instruments')
         except:
-            msg = 'Can not fetch available symbols from FXCM sever.'
-            self.logger.warn(msg)
+            self.looger.warn('Can not fetch instruments table from server.')
             data = list()
         return data
 
     def __collect_offers__(self):
         """ Collect available offers and stores them in self.offers, a dict
         with key symbol and value offer_id."""
-        self.offers = dict()
+        self.offers = fxcmpy_instruments.inst
+        data = self.__get_instruments_table__()
+
+        to_add = list()
+        to_unsubscribe = list()
+        if 'instrument' in data['data']:
+            instruments = data['data']['instrument']
+            for ins in instruments:
+                if ins['symbol'] not in self.offers:
+                    to_add.append(ins['symbol'])
+                    if ins['visible'] is False:
+                        to_unsubscribe.append(ins['symbol'])
+                        self.subscribe_instrument(ins['symbol'])
+
         offers = self.get_offers('list')
         for offer in offers:
             if 'currency' in offer and 'offerId' in offer:
-                self.offers[offer['currency']] = int(offer['offerId'])
+                if offer['currency'] in to_add:
+                    self.offers[offer['currency']] = int(offer['offerId'])
+                if offer['currency'] in to_unsubscribe:
+                    self.unsubscribe_instrument(offer['currency'])
+
 
     def __collect_positions__(self):
         data = self.get_open_positions('list')
@@ -2207,6 +2210,48 @@ class fxcmpy(object):
             if 'tradeId' in po and po['tradeId'] != '':
                 self.closed_pos[int(po['tradeId'])] = fxcmpy_closed_position(self,
                                                                            po)
+
+    def __update__instrument_subscription__(self, symbol, visible):
+        """ Update the subscription of an instrument to the offers table.
+
+        Arguments:
+
+        symbol, string:
+            the symbol of the instrument to activate.
+        visible, bool: 
+            flag whether to subscribe or unsubscribe the instrument.
+
+        Returns:
+            True by success and False else.
+        """
+
+        if visible:
+            visible = 'true'
+        else:
+            visible = 'false'
+
+        if self.number_update_requests > 48:
+            msg = 'Max. number of update request reached, renewing connection.'
+
+            self.logger.warn(msg)
+            if self.is_connected():
+                self.socket.disconnect()
+                time.sleep(1)
+
+            #self.__reconnect__(1)
+            self.number_update_requests = 0
+        else:
+            self.number_update_requests  += 1
+
+        try:
+            self.__handle_request__(method='trading/update_subscriptions',
+                                    params={'symbol':symbol, 'visible':visible},
+                                    protocol='post')
+        except:
+            self.logger.warn('Can not unsubscribe instrument %s' %symbol)
+            return False
+        return True
+
 
     def __connect__(self):
         try:

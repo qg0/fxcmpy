@@ -64,7 +64,8 @@ class fxcmpy(object):
     debug = False
 
     def __init__(self, access_token='', config_file='',
-                 log_file=None, log_level='', server='demo'):
+                 log_file=None, log_level='', server='demo',
+                 proxy_url=None, proxy_port=None, proxy_type=None):
         """ Constructor.
 
         Arguments:
@@ -76,7 +77,7 @@ class fxcmpy(object):
             path of an optional configuration file, fxcm tries to read all
             other parameter which are not given from that file. The file must
             be readable by configparser.
-        log_file: string (default: ''),
+        log_file: string (default: None),
             path of an optional log file. If not given (and not found in the
             optional configuration file), log messages are printed to stdout.
         log_level: string (default: ''),
@@ -85,10 +86,27 @@ class fxcmpy(object):
             'warn' is used.
         server: one of 'demo' or 'real' (default: 'demo'),
             wheter to use the fxcm demo or real trading server.
+        proxy_url, string (default: None):
+            if given (or found in the optional configuration file), the url is 
+            used for pproxy.
+        proxy_port, integer (default: None):
+            if proxy_url is given (or found in the optional configuration file),
+            this is the port of the proxy server.
+        proxy_type, one of 'http', 'socks4', 'socks5' or None (default):
+            if proxy_url is given (or found in the optional configuration file),
+            this is the type of the proxy server.
+
         """
 
         self.logger = None
         self.config_file = ''
+        if config_file != '':
+            if os.path.isfile(config_file):
+                self.config_file = config_file
+            else:
+                raise IOError('Can not find configuration file: %s.'
+                              % config_file)
+
         if server == 'demo':
             #self.auth_url = 'https://www-beta2.fxcorporate.com'
             self.trading_url = 'https://api-demo.fxcm.com'
@@ -100,12 +118,7 @@ class fxcmpy(object):
 
         if access_token != '':
             self.access_token = access_token
-        elif config_file != '':
-            if os.path.isfile(config_file):
-                self.config_file = config_file
-            else:
-                raise IOError('Can not find configuration file: %s.'
-                              % config_file)
+        elif self.config_file != '':
             try:
                 self.access_token = self.__get_config_value__('FXCM',
                                                               'access_token')
@@ -149,6 +162,48 @@ class fxcmpy(object):
                                 format=form)
 
         self.logger = logging.getLogger('FXCM')
+
+        if proxy_url is None and self.config_file != '':
+            try:
+                proxy_url = self.__get_config_value__('FXCM', 'proxy_url')
+            except:
+                pass
+        if proxy_url is not None:
+            if proxy_port is None and self.config_file != '':
+                try:
+                    proxy_port = self.__get_config_value__('FXCM', 'proxy_port')
+                except:
+                    raise ValueError('No port for proxy given')
+            if proxy_port is None:
+                raise ValueError('No port for proxy given')
+            else:
+                try:
+                    proxy_port = int(proxy_port)
+                except:
+                    raise ValueError('proxy_port must be an integer')
+
+            if proxy_type is None and self.config_file != '':
+                try:
+                    proxy_type = self.__get_config_value__('FXCM', 'proxy_type')
+                except:
+                    proxy_type = 'http'
+
+            if proxy_type not in ['http', 'socks4', 'socks5']:
+                self.logger.warn("No or invalid proxy_type, use 'http' instead")
+                proxy_type = 'http'
+
+            if proxy_type == 'http':
+                sec_proxy_type = 'https'
+            else:
+                sec_proxy_type = proxy_type 
+
+            self.proxies = {'https': '%s://%s:%s' % (sec_proxy_type, proxy_url, 
+                                                     proxy_port), 
+                            'http': '%s://%s:%s' % (proxy_type, proxy_url, 
+                                                    proxy_port) }
+        else:
+            self.proxies = {}
+
         self.socket = None
         self.request_header = None
         self.default_account = None
@@ -168,11 +223,11 @@ class fxcmpy(object):
         self.connect()
 
         count = 0
-        while self.connection_status == 'pending' and count < 1000:
+        while self.connection_status == 'pending' and count < 100:
             count += 1
-            time.sleep(0.1)
+            time.sleep(1)
 
-        if self.connection_status == 'pending' and count == 1000:
+        if self.connection_status == 'pending' and count == 100:
             raise ServerError('Can not find FXCM Server.')
         elif self.connection_status == 'aborted':
             raise ServerError('Can not connect to FXCM Server.')
@@ -2259,10 +2314,12 @@ class fxcmpy(object):
             self.socket = SocketIO(self.trading_url+':443', self.port,
                                    params={'access_token': self.access_token,
                                             'agent': 'pythonquants'},
-                                   wait_for_connection=False)
-            self.logger.debug('Socket established: %s.' % self.socket)
+                                   wait_for_connection=False, 
+                                   proxies = self.proxies)
+            self.logger.info('Socket established: %s.' % self.socket)
             self.socket_id = self.socket._engineIO_session.id
-            self.logger.debug('Got socket session id: %s.' % self.socket_id)
+            self.logger.info('Got socket session id: %s.' % self.socket_id)
+            
         except ConnectionError as inst:
             self.connection_status = 'aborted'
             self.logger.error('Socket returns an error: %s.'
@@ -2336,24 +2393,30 @@ class fxcmpy(object):
                     self.logger.warn('No open positions to close.')
                     return False
 
+
         self.logger.info('Sending request to %s/%s, parameter: %s.'
                          % (self.trading_url, method, params))
+
         if protocol == 'post':
             req = requests.post('%s:443/%s' % (self.trading_url, method),
-                                headers=self.request_headers, data=params)
+                                headers=self.request_headers, data=params,
+                                proxies=self.proxies)
             self.logger.info('Sending POST Request:')
             self.logger.info('URL: %s' % req.url)
             self.logger.info('Payload: %s' % req.request.body)
             self.logger.info('Headers: %s' % req.request.headers)
             self.logger.info('Params: %s' % params)
+            self.logger.info('Proxies: %s' % self.proxies)
 
         else:
             req = requests.get('%s:443/%s' % (self.trading_url, method),
-                               headers=self.request_headers, params=params)
+                               headers=self.request_headers, params=params,
+                               proxies=self.proxies)
             self.logger.info('Sending GET Request:')
             self.logger.info('URL: %s' % req.url)
             self.logger.info('Headers: %s' % req.request.headers)
             self.logger.info('Params: %s' % params)
+            self.logger.info('Proxies: %s' % self.proxies)
 
         if req.status_code != 200:
             self.logger.error('FXCM reject req %s with status %s and msg %s.'

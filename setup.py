@@ -11,7 +11,7 @@ def readme():
 setup(
     name = 'fxcmpy',
     packages = ['fxcmpy'], # this must be the same as the name above
-    version = '1.1.21',
+    version = '1.1.17',
     description = 'A Python Wrapper Class for the RESTful API as provided by FXCM Forex Capital Markets Ltd.',
     long_description = readme(),
     author = 'The Python Quants GmbH',
@@ -20,7 +20,7 @@ setup(
     url = 'https://github.com/fxcm/fxcmpy', 
     download_url = 'https://github.com/fxcm/fxcmpy', 
     keywords = 'FXCM API Python Wrapper Finance Algo Trading',
-    install_requires=['pandas', 'socketIO_client', 'configparser', 'requests'], 
+    install_requires=['pandas', 'socketIO_client', 'configparser', 'requests[socks]'], 
     python_requires='>=3.4',
     include_package_data = True,
     package_data={

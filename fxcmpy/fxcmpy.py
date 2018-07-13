@@ -907,7 +907,7 @@ class fxcmpy(object):
 
         time_in_force: string (default: 'GTC'),
             the time in force of the order execution, must be one of
-            'IOC', 'GTC', 'FOK', 'DAY' or 'GTD'.
+            'IOC', 'GTC', 'FOK' or 'DAY'.
 
         account_id: integer (Default None),
             the order's account id. If not given, the default account is used.
@@ -928,8 +928,8 @@ class fxcmpy(object):
             msg = "order_type must be 'AtMarket' or 'MarketRange'."
             raise ValueError(msg)
 
-        if time_in_force not in ['IOC', 'GTC', 'FOK', 'DAY', 'GTD']:
-            msg = "time_in_force must be in 'IOC', 'GTC', 'FOK', 'DAY', 'GTD'"
+        if time_in_force not in ['IOC', 'GTC', 'FOK', 'DAY']:
+            msg = "time_in_force must be in 'IOC', 'GTC', 'FOK', 'DAY'."
             raise ValueError(msg)
 
         params = {
@@ -957,7 +957,7 @@ class fxcmpy(object):
 
         time_in_force: string (default: 'GTC'),
             the time in force of the order execution, must be one of
-            'IOC', 'GTC', 'FOK', 'DAY' or 'GTD'.
+            'IOC', 'GTC', 'FOK' or 'DAY'.
 
         account_id: integer (Default None),
             the order's account id. If not given, the default account is used.
@@ -978,8 +978,8 @@ class fxcmpy(object):
             msg = "order_type must be 'AtMarket' or 'MarketRange'."
             raise ValueError(msg)
 
-        if time_in_force not in ['IOC', 'GTC', 'FOK', 'DAY', 'GTD']:
-            msg = "time_in_force must be in 'IOC', 'GTC', 'FOK', 'DAY', 'GTD'"
+        if time_in_force not in ['IOC', 'GTC', 'FOK', 'DAY']:
+            msg = "time_in_force must be in 'IOC', 'GTC', 'FOK', 'DAY'."
             raise ValueError(msg)
 
         params = {
@@ -1001,9 +1001,6 @@ class fxcmpy(object):
 
         Arguments:
 
-        account_id: integer,
-            the id of the trading account.
-
         symbol: string,
             the symbol of the instrument to trade as given by
             get_instruments().
@@ -1019,7 +1016,7 @@ class fxcmpy(object):
 
         time_in_force: string,
             the time in force of the order execution, must be one of
-            'IOC', 'GTC', 'FOK', 'DAY' or 'GTD'.
+            'IOC', 'GTC', 'FOK' or 'DAY'.
 
         rate: float (default 0),
             the trades rate.
@@ -1079,8 +1076,8 @@ class fxcmpy(object):
             msg = "order_type must be 'AtMarket' or 'MarketRange'."
             raise ValueError(msg)
 
-        if time_in_force not in ['IOC', 'GTC', 'FOK', 'DAY', 'GTD']:
-            msg = "time_in_force must be in 'IOC', 'GTC', 'FOK', 'DAY', 'GTD'"
+        if time_in_force not in ['IOC', 'GTC', 'FOK', 'DAY']:
+            msg = "time_in_force must be in 'IOC', 'GTC', 'FOK', 'DAY'."
             raise ValueError(msg)
 
         if is_in_pips is True:
@@ -1232,7 +1229,7 @@ class fxcmpy(object):
 
         time_in_force: string (default 'IOC'),
             the time in force of the order execution, must be one of
-            'IOC', 'GTC', 'FOK', 'DAY' or 'GTD'.
+            'IOC', 'GTC', 'FOK' or 'DAY''.
 
         rate: float (default 0),
             the trades rate.
@@ -1240,7 +1237,7 @@ class fxcmpy(object):
         at_market: float (default 0),
             the markets range.
         """
-
+      
         try:
             trade_id = int(trade_id)
         except:
@@ -1275,8 +1272,8 @@ class fxcmpy(object):
             msg = "order_type must be 'AtMarket' or 'MarketRange'."
             raise ValueError(msg)
 
-        if time_in_force not in ['IOC', 'GTC', 'FOK', 'DAY', 'GTD']:
-            msg = "time_in_force must be in 'IOC', 'GTC', 'FOK', 'DAY', 'GTD'."
+        if time_in_force not in ['IOC', 'GTC', 'FOK', 'DAY']:
+            msg = "time_in_force must be in 'IOC', 'GTC', 'FOK' or 'DAY'."
             raise ValueError(msg)
 
         params = {
@@ -1468,7 +1465,9 @@ class fxcmpy(object):
 
     def create_entry_order(self, symbol, is_buy, amount, time_in_force,
                            order_type="Entry", limit=0, is_in_pips=True,
-                           rate=0, stop=None, trailing_step=None,
+                           rate=0, stop=None, trailing_step=None, 
+                           trailing_stop_step=None, order_range=None, 
+                           expiration=None,
                            account_id=None):
         """ Creates an entry order for a given instrument.
 
@@ -1488,11 +1487,11 @@ class fxcmpy(object):
             the trades amount in lots.
 
         order_type: string,
-            the order type, must be 'Entry'.
+            the order type, must be 'Entry' (default) or 'RangeEntry'.
 
         time_in_force: string,
             the time in force of the order execution, must be one of
-            'GTC', 'DAY' or 'GTD'.
+            'GTC', 'DAY', 'IOC', 'FOK' or 'GTD'.
 
         rate: float (default 0),
             the trades rate.
@@ -1508,6 +1507,16 @@ class fxcmpy(object):
 
         trailing_step: float or None (default None),
             the trailing step for the stop rate.
+
+        trailing_stop_step: float or None (default None),
+            the trailing step for the order stop rate.
+
+        order_range: float or None (default),
+            the order's range if order type is 'RangeEntry'.
+
+        expiration: datetime.datetime, datetime.date or string (defaut None),
+            order's expiration date for 'GTD'. If a string, the date is 
+            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'. 
 
         Returns:
 
@@ -1541,12 +1550,12 @@ class fxcmpy(object):
         except:
             raise TypeError('limit must be a number.')
 
-        if order_type not in ['Entry']:
-            msg = "order_type must be 'Entry'."
+        if order_type not in ['Entry', 'RangeEntry']:
+            msg = "order_type must be 'Entry' or 'RangeEntry'."
             raise ValueError(msg)
 
-        if time_in_force not in ['GTC', 'DAY', 'GTD']:
-            msg = "time_in_force must be in 'GTC', 'DAY' or 'GTD'."
+        if time_in_force not in ['GTC', 'DAY', 'GTD', 'IOC', 'FOK'] :
+            msg = "time_in_force must be 'GTC', 'DAY', 'IOC', 'FOK', or 'GTD'."
             raise ValueError(msg)
 
         if is_in_pips is True:
@@ -1573,7 +1582,48 @@ class fxcmpy(object):
             try:
                 trailing_step = float(trailing_step)
             except:
-                raise ValueError('trailing step must be a number.')
+                raise ValueError('trailing_step must be a number.')
+
+        if trailing_stop_step is not None:
+            try:
+                trailing_stop_step = float(trailing_stop_step)
+            except:
+                raise ValueError('trailing_stop_step must be a number.')
+
+        if order_range is not None:
+            try:
+                order_range = float(order_range)
+            except:
+                raise ValueError('order_range must be a number.')
+        elif order_type == 'RangeEntry':
+            msg = "If order type is 'RangeEntry', order_range must be given."
+            raise ValueError(msg)
+
+        if expiration:
+            if isinstance(expiration, str):
+                if len(expiration) == 10:
+                     expiration += ' 00:00'
+                try:
+                    expiration = dt.datetime.strptime(expiration,
+                                                      '%Y-%m-%d %H:%M')
+                except:
+                    msg = "expiration must either be a datetime object or a "
+                    msg += " string in format 'YYYY-MM-DD hh:mm'."
+                    raise ValueError(msg)
+
+            elif (isinstance(expiration, dt.datetime) or 
+                  isinstance(expiration, dt.date)):
+                pass
+            else:
+                msg = "expiration must either be a datetime object or a string"
+                msg += " in format 'YYYY-MM-DD hh:mm'."
+                raise ValueError(msg)
+
+            expi = expiration.strftime('%Y-%m-%d %H:%M')
+        elif time_in_force == 'GTD':
+            msg = "If time_in_force is 'GTD', expiration must be given."
+            raise ValueError(msg)
+
 
         params = {
                   'account_id': account_id,
@@ -1591,6 +1641,12 @@ class fxcmpy(object):
             params['stop'] = stop
         if trailing_step is not None:
             params['trailing_step'] = trailing_step
+        if trailing_stop_step is not None:
+            params['trailing_stop_step'] = trailing_stop_step
+        if order_range is not None:
+            params['range'] = order_range
+        if expiration is not None:
+            params['expiration'] = expi
 
         data = self.__handle_request__(method='trading/create_entry_order',
                                        params=params, protocol='post')
@@ -1679,7 +1735,7 @@ class fxcmpy(object):
                                 protocol='post')
 
     def create_oco_order(self, symbol, is_buy, is_buy2, amount, is_in_pips,
-                         time_in_force, at_market, order_type, expiration,
+                         time_in_force, at_market, order_type, expiration=None,
                          limit=0, limit2=0, rate=0, rate2=0, stop=0, stop2=0,
                          trailing_step=0, trailing_step2=0,
                          trailing_stop_step=0, trailing_stop_step2=0,
@@ -1856,6 +1912,33 @@ class fxcmpy(object):
         except:
             raise ValueError('trailing_stop_step2 must be a number.')
 
+        if expiration:
+            if isinstance(expiration, str):
+                if len(expiration) == 10:
+                     expiration += ' 00:00'
+                try:
+                    expiration = dt.datetime.strptime(expiration,
+                                                      '%Y-%m-%d %H:%M')
+                except:
+                    msg = "expiration must either be a datetime object or a "
+                    msg += " string in format 'YYYY-MM-DD hh:mm'."
+                    raise ValueError(msg)
+
+            elif (isinstance(expiration, dt.datetime) or 
+                  isinstance(expiration, dt.date)):
+                pass
+            else:
+                msg = "expiration must either be a datetime object or a string"
+                msg += " in format 'YYYY-MM-DD hh:mm'."
+                raise ValueError(msg)
+
+            expi = expiration.strftime('%Y-%m-%d %H:%M')
+        elif time_in_force == 'GTD':
+            msg = "If time_in_force is 'GTD', expiration must be given."
+            raise ValueError(msg)
+
+
+
         params = {
                   'account_id': account_id,
                   'symbol': symbol,
@@ -1864,7 +1947,7 @@ class fxcmpy(object):
                   'order_type': order_type,
                   'is_in_pips': is_in_pips,
                   'time_in_force': time_in_force,
-                  'expiration': expiration,
+                  #'expiration': expiration,
                   'is_buy': is_buy,
                   'is_buy2': is_buy2,
                   'rate': rate,
@@ -1878,6 +1961,9 @@ class fxcmpy(object):
                   'trailing_stop_step': trailing_stop_step,
                   'trailing_stop_step2': trailing_stop_step2,
                  }
+
+        if expiration is not None:
+            params['expiration'] = expi
 
         data = self.__handle_request__(method='trading/simple_oco',
                                        params=params, protocol='post')
@@ -2224,7 +2310,7 @@ class fxcmpy(object):
         try:
             data = self.__handle_request__(method='trading/get_instruments')
         except:
-            self.looger.warn('Can not fetch instruments table from server.')
+            self.logger.warn('Can not fetch instruments table from server.')
             data = list()
         return data
 
@@ -2702,7 +2788,7 @@ class fxcmpy(object):
 
         if key not in config[section]:
             if self.logger:
-                self.logger.error('Can not find key %s in section %s of %s.'
+                self.logger.info('Can not find key %s in section %s of %s.'
                                   % (key, section, self.config_file))
             raise ValueError('Can not find key %s in section %s of %s.'
                              % (key, section, self.config_file))

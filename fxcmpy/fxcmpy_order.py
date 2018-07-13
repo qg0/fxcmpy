@@ -31,13 +31,15 @@ class fxcmpy_order(object):
                        'stopMove', 'stop', 'stopRate', 'limit', 'limitRate',
                        'isEntryOrder', 'ocoBulkId', 'isNetQuantity',
                        'isLimitOrder', 'isStopOrder', 'isELSOrder',
-                       'stopPegBaseType', 'limitPegBaseType', 'range']
+                       'stopPegBaseType', 'limitPegBaseType', 'range',
+                       'expireDate']
     status_values = {0: 'Unknown', 1: 'Waiting', 2: 'In Process',
                      3: 'Canceled', 4: 'Requoted', 5: 'Margin Call',
                      6: 'Executing', 7: 'Pending', 8: 'Equity Stop',
                      9: 'Executed', 10: 'Activated'}
 
     def __init__(self, connection, kwargs):
+        print(kwargs)
         self.__con__ = connection
         self.logger = self.__con__.logger
         self.parameter = set()
@@ -76,6 +78,10 @@ class fxcmpy_order(object):
     def get_timeInForce(self):
         """Return the value of attribute timeInForce."""
         return self.__timeInForce__
+
+    def get_expireDate(self):
+        """Return the value of attribute timeInForce."""
+        return self.__expireDate__
 
     def get_currency(self):
         """Return the value of attribute currency."""

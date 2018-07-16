@@ -39,7 +39,6 @@ class fxcmpy_order(object):
                      9: 'Executed', 10: 'Activated'}
 
     def __init__(self, connection, kwargs):
-        print(kwargs)
         self.__con__ = connection
         self.logger = self.__con__.logger
         self.parameter = set()

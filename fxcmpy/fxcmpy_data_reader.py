@@ -35,51 +35,41 @@ class fxcmpy_tick_data_reader(object):
             defines the instrument to deliver data for.
 
         start: datetime.datetime, datetime.date or string (defaut None),
-            the first date to receive data for. If it is a string, the date is
-            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'.
+            the first date to receive data for.
 
         end: datetime.datetime, datetime.date or string (defaut None),
-            the first date to receive data for. If it is a string, the date is
-            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'.
+            the first date to receive data for.
 
         verbosity: boolean (default: False), 
             whether to print output or not.
 
         """
         if isinstance(start, str):
-            if len(start) == 10:
-                start += ' 00:00'
             try:
-                start = dt.datetime.strptime(start, '%Y-%m-%d %H:%M')
+                start = pd.Timestamp(start).to_pydatetime()
             except:
-                msg = "start must either be a datetime object or a string"
-                msg += " in format 'YYYY-MM-DD hh:mm'."
+                msg = "Can not convert parameter start to datetime."
                 raise ValueError(msg)
 
         elif isinstance(start, dt.datetime) or isinstance(start, dt.date):
             pass
         else:
             msg = "start must either be a datetime object or a string"
-            msg += " in format 'YYYY-MM-DD hh:mm'."
             raise ValueError(msg)
 
         self.start = start
 
         if isinstance(end, str):
-            if len(end) == 10:
-                end += ' 00:00'
             try:
-                end = dt.datetime.strptime(end, '%Y-%m-%d %H:%M')
+                end = pd.Timestamp(end).to_pydatetime()
             except:
-                msg = "end must either be a datetime object or a string"
-                msg += " in format 'YYYY-MM-DD hh:mm'."
+                msg = "Can not convert parameter end to datetime."
                 raise ValueError(msg)
 
         elif isinstance(end, dt.datetime) or isinstance(end, dt.date):
             pass
         else:
-            msg = "end must either be a datetime object or a string"
-            msg += " in format 'YYYY-MM-DD hh:mm'."
+            msg = "end must either be a datetime object or a string."
             raise ValueError(msg)
 
         self.stop = end
@@ -117,50 +107,40 @@ class fxcmpy_tick_data_reader(object):
         ==========
 
         start: datetime.datetime, datetime.date or string (defaut None),
-            the first date to receive data for. If it is a string, the date is
-            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'.
-            If None, the value of start as given in the constructor is used. 
+            the first date to receive data for. If None, the value of start as 
+            given in the constructor is used. 
 
         end: datetime.datetime, datetime.date or string (defaut None),
-            the first date to receive data for. If it is a string, the date is
-            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'.
-            If None, the value of end as given in the constructor is used. 
+            the first date to receive data for. If None, the value of end as 
+            given in the constructor is used. 
 
         """
         if start is not None:
             if isinstance(start, str):
-                if len(start) == 10:
-                    start += ' 00:00'
                 try:
-                    start = dt.datetime.strptime(start, '%Y-%m-%d %H:%M')
+                    start = pd.Timestamp(start).to_pydatetime()
                 except:
-                    msg = "start must either be a datetime object or a string"
-                    msg += " in format 'YYYY-MM-DD hh:mm'."
+                    msg = "Can not convert parameter start to datetime."
                     raise ValueError(msg)
 
             elif isinstance(start, dt.datetime) or isinstance(start, dt.date):
                 pass
             else:
-                msg = "start must either be a datetime object or a string"
-                msg += " in format 'YYYY-MM-DD hh:mm'."
+                msg = "start must either be a datetime object or a string."
                 raise ValueError(msg)
 
         if end is not None:
             if isinstance(end, str):
-                if len(end) == 10:
-                    end += ' 00:00'
                 try:
-                    end = dt.datetime.strptime(end, '%Y-%m-%d %H:%M')
+                    end = pd.Timestamp(end).to_pydatetime() 
                 except:
-                    msg = "end must either be a datetime object or a string"
-                    msg += " in format 'YYYY-MM-DD hh:mm'."
+                    msg = "Can not convert parameter end to datetime."
                     raise ValueError(msg)
 
             elif isinstance(end, dt.datetime) or isinstance(end, dt.date):
                 pass
             else:
                 msg = "end must either be a datetime object or a string"
-                msg += " in format 'YYYY-MM-DD hh:mm'."
                 raise ValueError(msg)
 
         try:
@@ -225,12 +205,10 @@ class fxcmpy_candles_data_reader(fxcmpy_tick_data_reader):
             defines the instrument to deliver data for.
 
         start: datetime.datetime, datetime.date or string (defaut None),
-            the first date to receive data for. If it is a string, the date is
-            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'.
+            the first date to receive data for.
 
         end: datetime.datetime, datetime.date or string (defaut None),
-            the first date to receive data for. If it is a string, the date is
-            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'.
+            the first date to receive data for.
 
         period: string, one of ('m1', 'H1', 'D1'), 
             the granularity of the data.

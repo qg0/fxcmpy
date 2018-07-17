@@ -1515,8 +1515,7 @@ class fxcmpy(object):
             the order's range if order type is 'RangeEntry'.
 
         expiration: datetime.datetime, datetime.date or string (defaut None),
-            order's expiration date for 'GTD'. If a string, the date is 
-            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'. 
+            order's expiration date for 'GTD'. 
 
         Returns:
 
@@ -1601,14 +1600,10 @@ class fxcmpy(object):
 
         if expiration:
             if isinstance(expiration, str):
-                if len(expiration) == 10:
-                     expiration += ' 00:00'
                 try:
-                    expiration = dt.datetime.strptime(expiration,
-                                                      '%Y-%m-%d %H:%M')
+                    expiration = pd.Timestamp(expiration).to_pydatetime()
                 except:
-                    msg = "expiration must either be a datetime object or a "
-                    msg += " string in format 'YYYY-MM-DD hh:mm'."
+                    msg = "Can not convert parameter expiration to datetime." 
                     raise ValueError(msg)
 
             elif (isinstance(expiration, dt.datetime) or 
@@ -1616,7 +1611,6 @@ class fxcmpy(object):
                 pass
             else:
                 msg = "expiration must either be a datetime object or a string"
-                msg += " in format 'YYYY-MM-DD hh:mm'."
                 raise ValueError(msg)
 
             expi = expiration.strftime('%Y-%m-%d %H:%M')
@@ -1735,7 +1729,7 @@ class fxcmpy(object):
                                 protocol='post')
 
     def create_oco_order(self, symbol, is_buy, is_buy2, amount, is_in_pips,
-                         time_in_force, at_market, order_type, expiration=None,
+                         time_in_force, at_market, order_type,
                          limit=0, limit2=0, rate=0, rate2=0, stop=0, stop2=0,
                          trailing_step=0, trailing_step2=0,
                          trailing_stop_step=0, trailing_stop_step2=0,
@@ -1774,9 +1768,6 @@ class fxcmpy(object):
 
         order_type: string,
             the order type, must be 'Entry'.
-
-        expiration: string,
-            the order's expiration date.
 
         limit: float (default 0),
             the first order's limit rate.
@@ -1849,8 +1840,8 @@ class fxcmpy(object):
         else:
             raise ValueError('is_in_pips must be a boolean.')
 
-        if time_in_force not in ['IOC', 'GTC', 'FOK', 'DAY', 'GTD']:
-            msg = "time_in_force must be 'IOC', 'GTC', 'FOK', 'DAY' or 'GTD'."
+        if time_in_force not in ['IOC', 'GTC', 'FOK', 'DAY']:
+            msg = "time_in_force must be 'IOC', 'GTC', 'FOK' or 'DAY'."
             raise ValueError(msg)
 
         try:
@@ -1912,30 +1903,25 @@ class fxcmpy(object):
         except:
             raise ValueError('trailing_stop_step2 must be a number.')
 
-        if expiration:
-            if isinstance(expiration, str):
-                if len(expiration) == 10:
-                     expiration += ' 00:00'
-                try:
-                    expiration = dt.datetime.strptime(expiration,
-                                                      '%Y-%m-%d %H:%M')
-                except:
-                    msg = "expiration must either be a datetime object or a "
-                    msg += " string in format 'YYYY-MM-DD hh:mm'."
-                    raise ValueError(msg)
+        #if expiration:
+        #    if isinstance(expiration, str):
+        #        try:
+        #            expiration = pd.Timestamp(expiration).to_pydatetime()
+        #        except:
+        #            msg = "Can not convert parameter expiration to datetime."
+        #            raise ValueError(msg)
+        #
+        #    elif (isinstance(expiration, dt.datetime) or 
+        #          isinstance(expiration, dt.date)):
+        #        pass
+        #    else:
+        #        msg = "expiration must either be a datetime object or a string"
+        #        raise ValueError(msg)
 
-            elif (isinstance(expiration, dt.datetime) or 
-                  isinstance(expiration, dt.date)):
-                pass
-            else:
-                msg = "expiration must either be a datetime object or a string"
-                msg += " in format 'YYYY-MM-DD hh:mm'."
-                raise ValueError(msg)
-
-            expi = expiration.strftime('%Y-%m-%d %H:%M')
-        elif time_in_force == 'GTD':
-            msg = "If time_in_force is 'GTD', expiration must be given."
-            raise ValueError(msg)
+        #    expi = expiration.strftime('%Y-%m-%d %H:%M')
+        #elif time_in_force == 'GTD':
+        #    msg = "If time_in_force is 'GTD', expiration must be given."
+        #    raise ValueError(msg)
 
 
 
@@ -1947,7 +1933,6 @@ class fxcmpy(object):
                   'order_type': order_type,
                   'is_in_pips': is_in_pips,
                   'time_in_force': time_in_force,
-                  #'expiration': expiration,
                   'is_buy': is_buy,
                   'is_buy2': is_buy2,
                   'rate': rate,
@@ -2111,12 +2096,10 @@ class fxcmpy(object):
             the number of candles to receive.
 
         start: datetime.datetime, datetime.date or string (defaut None),
-            the first date to receive data for. If it is a string, the date is 
-            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'. 
+            the first date to receive data for. 
 
         end: datetime.datetime, datetime.date or string (default None),
-            the last date to receive data for. If it is a string, the date is 
-            in format 'YYYY-MM-DD hh:mm' or 'YYYY-MM-DD'. 
+            the last date to receive data for.
 
         with_index: boolean (default True),
             whether the column 'date' should server as index in the resulting
@@ -2177,20 +2160,16 @@ class fxcmpy(object):
 
         if start:
             if isinstance(start, str):
-                if len(start) == 10:
-                    start += ' 00:00'
                 try:
-                    start = dt.datetime.strptime(start, '%Y-%m-%d %H:%M')
+                    start = pd.Timestamp(start).to_pydatetime()
                 except:
-                    msg = "start must either be a datetime object or a string"
-                    msg += " in format 'YYYY-MM-DD hh:mm'."
+                    msg = "Can not convert parameter start to datetime."
                     raise ValueError(msg)
 
             elif isinstance(start, dt.datetime) or isinstance(start, dt.date):
                 pass
             else:
                 msg = "start must either be a datetime object or a string"
-                msg += " in format 'YYYY-MM-DD hh:mm'."
                 raise ValueError(msg)
 
             start = ((start - dt.datetime(1970, 1, 1)) / 
@@ -2208,21 +2187,17 @@ class fxcmpy(object):
 
         if end:
             if isinstance(end, str):
-                if len(end) == 10:
-                    end += ' 00:00'
                 try:
-                    end = dt.datetime.strptime(end, '%Y-%m-%d %H:%M')
+                    end = pd.Timestamp(end).to_pydatetime()
                 except:
-                    msg = "end must either be a datetime object or a string"
-                    msg += " in format 'YYYY-MM-DD hh:mm'."
+                    msg = "Can not convert parameter end to datetime."
                     raise ValueError(msg)
 
             elif isinstance(end, dt.datetime) or isinstance(end, dt.date):
                 pass
             else:
                 msg = "end must either be a datetime object or a string"
-                msg += " in format 'YYYY-MM-DD hh:mm'."
-        
+                raise ValueError(msg)
 
             end = ((end - dt.datetime(1970, 1, 1)) / dt.timedelta(seconds=1))
             try:

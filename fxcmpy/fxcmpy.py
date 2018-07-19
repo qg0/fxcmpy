@@ -108,11 +108,9 @@ class fxcmpy(object):
                               % config_file)
 
         if server == 'demo':
-            #self.auth_url = 'https://www-beta2.fxcorporate.com'
             self.trading_url = 'https://api-demo.fxcm.com'
             self.port = 443
         elif server == 'real':
-            #self.auth_url = 'https://www-beta2.fxcorporate.com'
             self.trading_url = 'https://api.fxcm.com'
             self.port = 443
 
@@ -205,6 +203,10 @@ class fxcmpy(object):
             self.proxies = {}
 
         self.socket = None
+        self.orders_set = False
+        self.oco_orders_set = False
+        self.offers_set = False
+        self.positions_set = False
         self.request_header = None
         self.default_account = None
         self.instruments = None
@@ -232,7 +234,7 @@ class fxcmpy(object):
         elif self.connection_status == 'aborted':
             raise ServerError('Can not connect to FXCM Server.')
 
-        time.sleep(5)
+        time.sleep(10)
         self.__collect_account_ids__()
         self.default_account = self.account_ids[0]
         msg = 'Default account set to %s, to change use set_default_account().'
@@ -1903,28 +1905,6 @@ class fxcmpy(object):
         except:
             raise ValueError('trailing_stop_step2 must be a number.')
 
-        #if expiration:
-        #    if isinstance(expiration, str):
-        #        try:
-        #            expiration = pd.Timestamp(expiration).to_pydatetime()
-        #        except:
-        #            msg = "Can not convert parameter expiration to datetime."
-        #            raise ValueError(msg)
-        #
-        #    elif (isinstance(expiration, dt.datetime) or 
-        #          isinstance(expiration, dt.date)):
-        #        pass
-        #    else:
-        #        msg = "expiration must either be a datetime object or a string"
-        #        raise ValueError(msg)
-
-        #    expi = expiration.strftime('%Y-%m-%d %H:%M')
-        #elif time_in_force == 'GTD':
-        #    msg = "If time_in_force is 'GTD', expiration must be given."
-        #    raise ValueError(msg)
-
-
-
         params = {
                   'account_id': account_id,
                   'symbol': symbol,
@@ -2264,6 +2244,7 @@ class fxcmpy(object):
         for order in data:
             if 'orderId' in order and order['orderId'] != '':
                 self.orders[int(order['orderId'])] = fxcmpy_order(self, order)
+        self.orders_set = True
 
     def __collect_oco_orders__(self):
         """ Collect available oco orders and stores them in self.oco_orders."""
@@ -2276,6 +2257,7 @@ class fxcmpy(object):
                     oco = fxcmpy_oco_order(order.__ocoBulkId__, [order, ], self,
                                          self.logger)
                     self.oco_orders[order.__ocoBulkId__] = oco
+        self.oco_orders_set = True
 
     def __get_instruments_table__(self):
         """ Return the instruments table of FXCM."""
@@ -2313,6 +2295,7 @@ class fxcmpy(object):
                     self.offers[offer['currency']] = int(offer['offerId'])
                 if offer['currency'] in to_unsubscribe:
                     self.unsubscribe_instrument(offer['currency'])
+        self.offers_set = True
 
 
     def __collect_positions__(self):
@@ -2326,6 +2309,7 @@ class fxcmpy(object):
             if 'tradeId' in po and po['tradeId'] != '':
                 self.closed_pos[int(po['tradeId'])] = fxcmpy_closed_position(self,
                                                                            po)
+        self.positions_set = True
 
     def __update__instrument_subscription__(self, symbol, visible):
         """ Update the subscription of an instrument to the offers table.
@@ -2354,7 +2338,6 @@ class fxcmpy(object):
                 self.socket.disconnect()
                 time.sleep(1)
 
-            #self.__reconnect__(1)
             self.number_update_requests = 0
         else:
             self.number_update_requests  += 1
@@ -2375,7 +2358,7 @@ class fxcmpy(object):
             self.socket = SocketIO(self.trading_url+':443', self.port,
                                    params={'access_token': self.access_token,
                                             'agent': 'pythonquants'},
-                                   wait_for_connection=False, 
+                                   wait_for_connection=True, 
                                    proxies = self.proxies)
             self.logger.info('Socket established: %s.' % self.socket)
             self.socket_id = self.socket._engineIO_session.id
@@ -2402,14 +2385,33 @@ class fxcmpy(object):
                                     'application/x-www-form-urlencoded'
                                    }
 
-            time.sleep(2)
+            #time.sleep(2)
             self.__disconnected__ = False
-            self.socket.on('disconnect', self.__on_disconnect__)
+            #self.socket.on('disconnect', self.__on_disconnect__)
             self.socket.wait()
 
 
     def __reconnect__(self, count):
         self.logger.warn('Not connected, try to reconnect. (%s)' % count)
+        try:
+            self.socket_thread.join()
+        except:
+            pass
+        self.socket = None
+        self.request_header = None
+        self.default_account = None
+        self.instruments = None
+        self.prices = dict()
+        self.account_ids = set()
+        self.orders = dict()
+        self.old_orders = dict()
+        self.offers = dict()
+        self.open_pos = dict()
+        self.closed_pos = dict()
+        self.oco_orders = dict()
+        self.add_callbacks = dict()
+        self.connection_status = 'unset'
+
         time.sleep(5)
         self.connect()
         time.sleep(5)
@@ -2421,7 +2423,6 @@ class fxcmpy(object):
             self.__handle_request__(method='subscribe', params=params,
                                     protocol='post')
             self.socket.on(symbol, self.__on_price_update__)
-        self.socket.on('disconnect',self.__on_disconnect__)
 
     def __handle_request__(self, method='', params={}, protocol='get'):
         """ Sends server requests. """
@@ -2439,6 +2440,7 @@ class fxcmpy(object):
             while not self.is_connected() and count < 11:
                 self.__reconnect__(count)
                 count += 1
+                time.sleep(5)
 
         if method == 'trading/close_all_for_symbol':
             if ('forSymbol' in params and params['forSymbol'] == 'false'
@@ -2501,6 +2503,10 @@ class fxcmpy(object):
             if 'error' in data['response'] and data['response']['error'] != '':
                 self.logger.error('Server reports an error: %s.'
                                   % data['response'])
+                self.logger.error('URL: %s' % req.url)
+                self.logger.error('Headers: %s' % req.request.headers)
+                self.logger.error('Params: %s' % params)
+
                 raise ServerError('FXCM Server reports an error: %s.'
                                   % data['response']['error'])
             else:
@@ -2567,6 +2573,9 @@ class fxcmpy(object):
         msg: string,
             a json like data object.
         """
+    
+        if not self.orders_set:
+            return 0
 
         try:
             data = json.loads(msg)
@@ -2602,7 +2611,12 @@ class fxcmpy(object):
             self.logger.debug('Update data without action:')
             self.logger.debug(data)
             if 'orderId' in data:
-                order = self.orders[int(data['orderId'])]
+                try:
+                    order = self.orders[int(data['orderId'])]
+                except:
+                    msg = 'Got update for unknown order id: %s.' % data['orderId']
+                    self.logger.warn(msg)
+                    return 0
                 for field in data:
                     if (field == 'ocoBulkId' and
                          order.get_ocoBulkId() != data['ocoBulkId']):
@@ -2638,6 +2652,8 @@ class fxcmpy(object):
         msg: string,
             a json like data object.
         """
+        if not self.positions_set: 
+            return 0
 
         try:
             data = json.loads(msg)
@@ -2688,6 +2704,8 @@ class fxcmpy(object):
         msg: string,
             a json like data object.
         """
+        if not self.positions_set:
+            return 0
 
         try:
             data = json.loads(msg)

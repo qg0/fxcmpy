@@ -2762,7 +2762,7 @@ class fxcmpy(object):
         self.bearer_token = None
         self.socket_id = None
         self.connection_status = 'unset'
-        self.logger.warn('Disconnected.')
+        self.logger.info('Disconnected.')
 
     def __on_connect__(self, msg=''):
         self.connection_status = 'established'

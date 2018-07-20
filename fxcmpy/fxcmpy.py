@@ -225,7 +225,8 @@ class fxcmpy(object):
         self.connect()
 
         count = 0
-        while self.connection_status == 'pending' and count < 100:
+        while ((self.connection_status == 'pending' or 
+                self.connection_status == 'unset') and count < 100):
             count += 1
             time.sleep(1)
 
@@ -234,7 +235,6 @@ class fxcmpy(object):
         elif self.connection_status == 'aborted':
             raise ServerError('Can not connect to FXCM Server.')
 
-        time.sleep(10)
         self.__collect_account_ids__()
         self.default_account = self.account_ids[0]
         msg = 'Default account set to %s, to change use set_default_account().'
@@ -1927,9 +1927,6 @@ class fxcmpy(object):
                   'trailing_stop_step2': trailing_stop_step2,
                  }
 
-        if expiration is not None:
-            params['expiration'] = expi
-
         data = self.__handle_request__(method='trading/simple_oco',
                                        params=params, protocol='post')
 
@@ -2358,11 +2355,11 @@ class fxcmpy(object):
             self.socket = SocketIO(self.trading_url+':443', self.port,
                                    params={'access_token': self.access_token,
                                             'agent': 'pythonquants'},
-                                   wait_for_connection=True, 
+                                   wait_for_connection=False, 
                                    proxies = self.proxies)
             self.logger.info('Socket established: %s.' % self.socket)
-            self.socket_id = self.socket._engineIO_session.id
-            self.logger.info('Got socket session id: %s.' % self.socket_id)
+            # self.socket_id = self.socket._engineIO_session.id
+            #self.logger.warn('Got socket session id: %s.' % self.socket_id)
             
         except ConnectionError as inst:
             self.connection_status = 'aborted'
@@ -2372,22 +2369,11 @@ class fxcmpy(object):
             self.connection_status = 'aborted'
             self.logger.error('Socket returns unknown error.')
         else:
-            self.connection_status = 'established'
-            self.logger.info('Connection established.')
-
-            self.bearer_token = 'Bearer '+self.socket_id+self.access_token
-
-            self.request_headers = {
-                                    'User-Agent': 'request',
-                                    'Authorization': self.bearer_token,
-                                    'Accept': 'application/json',
-                                    'Content-Type':
-                                    'application/x-www-form-urlencoded'
-                                   }
-
-            #time.sleep(2)
             self.__disconnected__ = False
-            #self.socket.on('disconnect', self.__on_disconnect__)
+            self.socket.on('connect',self.__on_connect__)
+            self.socket.on('disconnect',self.__on_disconnect__)
+            self.socket.on('connect_error',self.__on_connection_error__)
+            self.socket.on('error', self.__on_error__)
             self.socket.wait()
 
 
@@ -2441,6 +2427,21 @@ class fxcmpy(object):
                 self.__reconnect__(count)
                 count += 1
                 time.sleep(5)
+        if not self.is_connected():
+            self.logger.error('Connection aborted, failed to reconnect')
+            raise IOError('Connection aborted, failed to reconnect')
+
+        self.socket_id = self.socket._engineIO_session.id
+        self.bearer_token = 'Bearer '+self.socket_id+self.access_token
+        self.logger.info('Created bearer token: %s' % self.bearer_token) 
+        self.request_headers = {
+                                'User-Agent': 'request',
+                                'Authorization': self.bearer_token,
+                                'Accept': 'application/json',
+                                'Content-Type':
+                                'application/x-www-form-urlencoded'
+                               }
+
 
         if method == 'trading/close_all_for_symbol':
             if ('forSymbol' in params and params['forSymbol'] == 'false'
@@ -2506,6 +2507,12 @@ class fxcmpy(object):
                 self.logger.error('URL: %s' % req.url)
                 self.logger.error('Headers: %s' % req.request.headers)
                 self.logger.error('Params: %s' % params)
+                self.logger.error('Bearer token: %s' %self.bearer_token )
+                self.logger.error('Connection status: %s' 
+                                   % self.connection_status)
+                self.logger.error('Socket session id: %s' 
+                                   %self.socket._engineIO_session.id)
+
 
                 raise ServerError('FXCM Server reports an error: %s.'
                                   % data['response']['error'])
@@ -2748,18 +2755,22 @@ class fxcmpy(object):
                     self.logger(sys.exc_info()[1])
                     self.logger(sys.exc_info()[2])
 
-    def __on_error__(self, msg):
+    def __on_error__(self, msg=''):
         self.logger.error('Error: %s' % msg)
 
-    def __on_disconnect__(self):
-        if self.__disconnected__ is False:
-            count = 1
-            while count < 11 and not self.is_connected():
-                self.__reconnect__(count)
-                time.sleep(5)
-                count += 1
-            if not self.is_connected():
-                raise IOError('Connection lost, unable to reconnect')
+    def __on_disconnect__(self, msg=''):
+        self.bearer_token = None
+        self.socket_id = None
+        self.connection_status = 'unset'
+        self.logger.warn('Disconnected.')
+
+    def __on_connect__(self, msg=''):
+        self.connection_status = 'established'
+        self.logger.info('Connection established.')
+
+    def __on_connection_error__(self, msg=''):
+        self.logger.error('Connection error: %s' % msg)
+
 
     def __get_config_value__(self, section, key):
         config = configparser.ConfigParser()

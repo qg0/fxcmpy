@@ -226,11 +226,11 @@ class fxcmpy(object):
 
         count = 0
         while ((self.connection_status == 'pending' or 
-                self.connection_status == 'unset') and count < 100):
+                self.connection_status == 'unset') and count < 50):
             count += 1
             time.sleep(1)
 
-        if self.connection_status == 'pending' and count == 100:
+        if self.connection_status == 'pending' and count == 50:
             raise ServerError('Can not find FXCM Server.')
         elif self.connection_status == 'aborted':
             raise ServerError('Can not connect to FXCM Server.')
@@ -2382,7 +2382,7 @@ class fxcmpy(object):
         try:
             self.socket_thread.join()
         except:
-            pass
+            self.logger.error('Failed to join task')
         self.socket = None
         self.request_header = None
         self.default_account = None
@@ -2395,7 +2395,7 @@ class fxcmpy(object):
         self.open_pos = dict()
         self.closed_pos = dict()
         self.oco_orders = dict()
-        self.add_callbacks = dict()
+        #self.add_callbacks = dict()
         self.connection_status = 'unset'
 
         time.sleep(5)
@@ -2420,6 +2420,14 @@ class fxcmpy(object):
             self.logger.debug('Error in __handle__requests__:')
             self.logger.debig('params must be of type dict.')
             raise TypeError('params must be of type dict.')
+
+        self.logger.info('In handle_request with method %s' %method)
+        self.logger.info('Connection status: %s' % self.is_connected())
+        self.logger.info('2. connection status: %s' % self.connection_status) 
+        self.logger.info('Socket state: %s' % self.socket.connected)
+        self.logger.info('Thread state: %s' % self.socket_thread.is_alive())
+        self.logger.info('Thread name: %s' % self.socket_thread.name)
+        self.logger.info('Socket id: %s' % self.socket._engineIO_session.id)
 
         if not self.is_connected():
             count = 1
@@ -2545,10 +2553,10 @@ class fxcmpy(object):
             callbacks = self.add_callbacks[symbol]
             for func in callbacks:
                 try:
-                    t = Thread(target=callbacks[func], 
-                               args=(data, self.prices[symbol]))
-                    t.start()
-                    #callbacks[func](data, self.prices[symbol])
+                    #t = Thread(target=callbacks[func], 
+                    #           args=(data, self.prices[symbol]))
+                    #t.start()
+                    callbacks[func](data, self.prices[symbol])
                 except:
                     self.logger.error('Call of %s raised an error:' % func)
                     self.logger.error(sys.exc_info()[0])
@@ -2757,6 +2765,7 @@ class fxcmpy(object):
 
     def __on_error__(self, msg=''):
         self.logger.error('Error: %s' % msg)
+        raise ServerError(msg)
 
     def __on_disconnect__(self, msg=''):
         self.bearer_token = None
